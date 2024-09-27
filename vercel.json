@@ -9,23 +9,6 @@
       "dest": "/api/index.php"
     }
   ],
-  "builds": [
-    {
-      "src": "api/index.php",
-      "use": "@vercel/php",
-      "config": { "composer": true }
-    }
-  ],
-  "build": {
-    "env": {
-      "APP_ENV": "production",
-      "APP_DEBUG": "false", 
-      "APP_URL": "https://your-vercel-app-url.vercel.app"
-    },
-    "scripts": {
-      "build": "composer install --no-dev --optimize-autoloader && php artisan jwt:secret && php artisan migrate:fresh --seed"
-    }
-  },
   "env": {
     "APP_ENV": "production",
     "APP_DEBUG": "false", 
