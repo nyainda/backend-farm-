@@ -9,6 +9,7 @@ use PHPStan\Analyser\OutOfClassScope;
 use PHPStan\Reflection\ClassReflection;
 use PHPStan\Reflection\MethodReflection;
 use PHPStan\Reflection\MethodsClassReflectionExtension;
+use PHPStan\ShouldNotHappenException;
 
 final class HigherOrderTapProxyExtension implements MethodsClassReflectionExtension
 {
@@ -31,12 +32,14 @@ final class HigherOrderTapProxyExtension implements MethodsClassReflectionExtens
 
     public function getMethod(
         ClassReflection $classReflection,
-        string $methodName
+        string $methodName,
     ): MethodReflection {
         $templateType = $classReflection->getActiveTemplateTypeMap()->getType('TClass');
 
-        $reflection = $templateType->getObjectClassReflections()[0]; // @phpstan-ignore-line
+        if ($templateType === null || $templateType->getObjectClassReflections() === [] || ! $templateType->hasMethod($methodName)->yes()) {
+            throw new ShouldNotHappenException();
+        }
 
-        return $reflection->getMethod($methodName, new OutOfClassScope());
+        return $templateType->getMethod($methodName, new OutOfClassScope());
     }
 }

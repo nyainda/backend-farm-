@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Larastan\Larastan\Methods;
 
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Larastan\Larastan\Reflection\EloquentBuilderMethodReflection;
 use PHPStan\Analyser\OutOfClassScope;
@@ -22,23 +21,17 @@ use PHPStan\Type\IntegerType;
 use PHPStan\Type\ObjectType;
 
 use function array_key_exists;
+use function array_map;
+use function array_merge;
 use function in_array;
 
 final class EloquentBuilderForwardsCallsExtension implements MethodsClassReflectionExtension
 {
     /** @var array<string, MethodReflection> */
-    private $cache = [];
+    private array $cache = [];
 
-    /** @var BuilderHelper */
-    private $builderHelper;
-
-    /** @var ReflectionProvider */
-    private $reflectionProvider;
-
-    public function __construct(BuilderHelper $builderHelper, ReflectionProvider $reflectionProvider)
+    public function __construct(private BuilderHelper $builderHelper, private ReflectionProvider $reflectionProvider)
     {
-        $this->builderHelper = $builderHelper;
-        $this->reflectionProvider = $reflectionProvider;
     }
 
     /**
@@ -47,14 +40,14 @@ final class EloquentBuilderForwardsCallsExtension implements MethodsClassReflect
      */
     public function hasMethod(ClassReflection $classReflection, string $methodName): bool
     {
-        if (array_key_exists($classReflection->getCacheKey().'-'.$methodName, $this->cache)) {
+        if (array_key_exists($classReflection->getCacheKey() . '-' . $methodName, $this->cache)) {
             return true;
         }
 
         $methodReflection = $this->findMethod($classReflection, $methodName);
 
         if ($methodReflection !== null) {
-            $this->cache[$classReflection->getCacheKey().'-'.$methodName] = $methodReflection;
+            $this->cache[$classReflection->getCacheKey() . '-' . $methodName] = $methodReflection;
 
             return true;
         }
@@ -64,27 +57,30 @@ final class EloquentBuilderForwardsCallsExtension implements MethodsClassReflect
 
     public function getMethod(ClassReflection $classReflection, string $methodName): MethodReflection
     {
-        return $this->cache[$classReflection->getCacheKey().'-'.$methodName];
+        return $this->cache[$classReflection->getCacheKey() . '-' . $methodName];
     }
 
     /**
      * @throws MissingMethodFromReflectionException
      * @throws ShouldNotHappenException
      */
-    private function findMethod(ClassReflection $classReflection, string $methodName): ?MethodReflection
+    private function findMethod(ClassReflection $classReflection, string $methodName): MethodReflection|null
     {
         if ($classReflection->getName() !== EloquentBuilder::class && ! $classReflection->isSubclassOf(EloquentBuilder::class)) {
             return null;
         }
 
-        $modelType = $classReflection->getActiveTemplateTypeMap()->getType('TModelClass');
+        $loopReflection = $classReflection;
 
-        // Generic type is not specified
-        if ($modelType === null) {
-            if (! $classReflection->isGeneric() && $classReflection->getParentClass()?->isGeneric()) {
-                $modelType = $classReflection->getParentClass()->getActiveTemplateTypeMap()->getType('TModelClass');
+        do {
+            $modelType = $loopReflection->getActiveTemplateTypeMap()->getType('TModelClass');
+
+            if ($modelType !== null) {
+                break;
             }
-        }
+
+            $loopReflection = $loopReflection->getParentClass();
+        } while ($loopReflection !== null);
 
         if ($modelType === null) {
             return null;
@@ -94,19 +90,13 @@ final class EloquentBuilderForwardsCallsExtension implements MethodsClassReflect
             $modelType = $modelType->getBound();
         }
 
-        if ($modelType->getObjectClassReflections() !== []) {
-            $modelReflection = $modelType->getObjectClassReflections()[0];
-        } else {
-            $modelReflection = $this->reflectionProvider->getClass(Model::class);
-        }
-
-        $ref = $this->builderHelper->searchOnEloquentBuilder($classReflection, $methodName, $modelReflection);
+        $ref = $this->builderHelper->searchOnEloquentBuilder($classReflection, $methodName, $modelType);
 
         if ($ref === null) {
             // Special case for `SoftDeletes` trait
             if (
-                in_array($methodName, ['withTrashed', 'onlyTrashed', 'withoutTrashed', 'restore'], true) &&
-                array_key_exists(SoftDeletes::class, $modelReflection->getTraits(true))
+                in_array($methodName, ['withTrashed', 'onlyTrashed', 'withoutTrashed', 'restore', 'createOrRestore', 'restoreOrCreate'], true) &&
+                array_key_exists(SoftDeletes::class, array_merge(...array_map(static fn ($r) => $r->getTraits(true), $modelType->getObjectClassReflections())))
             ) {
                 $ref = $this->reflectionProvider->getClass(SoftDeletes::class)->getMethod($methodName, new OutOfClassScope());
 
@@ -116,7 +106,17 @@ final class EloquentBuilderForwardsCallsExtension implements MethodsClassReflect
                         $classReflection,
                         ParametersAcceptorSelector::selectSingle($ref->getVariants())->getParameters(),
                         new IntegerType(),
-                        ParametersAcceptorSelector::selectSingle($ref->getVariants())->isVariadic()
+                        ParametersAcceptorSelector::selectSingle($ref->getVariants())->isVariadic(),
+                    );
+                }
+
+                if ($methodName === 'restoreOrCreate' || $methodName === 'createOrRestore') {
+                    return new EloquentBuilderMethodReflection(
+                        $methodName,
+                        $classReflection,
+                        ParametersAcceptorSelector::selectSingle($ref->getVariants())->getParameters(),
+                        $modelType,
+                        ParametersAcceptorSelector::selectSingle($ref->getVariants())->isVariadic(),
                     );
                 }
 
@@ -125,24 +125,11 @@ final class EloquentBuilderForwardsCallsExtension implements MethodsClassReflect
                     $classReflection,
                     ParametersAcceptorSelector::selectSingle($ref->getVariants())->getParameters(),
                     new GenericObjectType($classReflection->getName(), [$modelType]),
-                    ParametersAcceptorSelector::selectSingle($ref->getVariants())->isVariadic()
+                    ParametersAcceptorSelector::selectSingle($ref->getVariants())->isVariadic(),
                 );
             }
 
             return null;
-        }
-
-        $parametersAcceptor = ParametersAcceptorSelector::selectSingle($ref->getVariants());
-
-        if (in_array($methodName, $this->builderHelper->passthru, true)) {
-            $returnType = $parametersAcceptor->getReturnType();
-
-            return new EloquentBuilderMethodReflection(
-                $methodName, $classReflection,
-                $parametersAcceptor->getParameters(),
-                $returnType,
-                $parametersAcceptor->isVariadic()
-            );
         }
 
         // Macros have their own reflection. And return type, parameters, etc. are already set with the closure.
@@ -150,7 +137,11 @@ final class EloquentBuilderForwardsCallsExtension implements MethodsClassReflect
             return $ref;
         }
 
-        if ($classReflection->isGeneric()) {
+        $parametersAcceptor = ParametersAcceptorSelector::selectSingle($ref->getVariants());
+
+        if (in_array($methodName, $this->builderHelper->passthru, true)) {
+            $returnType = $parametersAcceptor->getReturnType();
+        } elseif ($classReflection->isGeneric()) {
             $returnType = new GenericObjectType($classReflection->getName(), [$modelType]);
         } else {
             $returnType = new ObjectType($classReflection->getName());
@@ -159,10 +150,11 @@ final class EloquentBuilderForwardsCallsExtension implements MethodsClassReflect
         // Returning custom reflection
         // to ensure return type is always `EloquentBuilder<Model>`
         return new EloquentBuilderMethodReflection(
-            $methodName, $classReflection,
+            $methodName,
+            $classReflection,
             $parametersAcceptor->getParameters(),
             $returnType,
-            $parametersAcceptor->isVariadic()
+            $parametersAcceptor->isVariadic(),
         );
     }
 }

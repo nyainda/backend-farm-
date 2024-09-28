@@ -1,6 +1,24 @@
 # Change Log
 
-## [5.9.x] - YYYY-MM-DD
+## [5.10.0] - 2024-08-29
+
+- Fix parsing of UPDATE ... SET (#577)
+- Fix parsing of WITH PARSER (#563)
+- Fix context files for MySQL and MariaDB (#572) (#576)
+- Allow using `::class` keyword to load a context (#571)
+- Fix query flags for lower-case functions (#564)
+- Improve context files by using constants (#570)
+- Fix case when a condition is not parsed correctly (#560)
+- Support parsing KILL statements (#556)
+- Fix replace clause of select statement with FOR UPDATE (#555)
+- Add support for ALTER FUNCTION and ALTER PROCEDURE statements (#553)
+
+## [5.9.1] - 2024-08-13
+
+- Allow parsing ALTER TABLE statement with column check constraint (#554)
+- Add support for PHPUnit 10 (#573)
+
+## [5.9.0] - 2024-01-20
 
 - Fix keywords not being recognized as table alias (#496)
 - Add `bin/sql-parser` executable file (#517)
@@ -560,3 +578,7 @@ __Breaking changes:__
 ## [1.0.0] - 2015-08-20
 
 * First release of this library.
+
+[5.10.0]: https://github.com/phpmyadmin/sql-parser/compare/5.9.1...5.10.0
+[5.9.1]: https://github.com/phpmyadmin/sql-parser/compare/5.9.0...5.9.1
+[5.9.0]: https://github.com/phpmyadmin/sql-parser/compare/5.8.2...5.9.0

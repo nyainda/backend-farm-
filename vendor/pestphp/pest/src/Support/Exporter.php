@@ -32,7 +32,7 @@ final class Exporter
     public static function default(): self
     {
         return new self(
-            new BaseExporter()
+            new BaseExporter
         );
     }
 
@@ -47,7 +47,7 @@ final class Exporter
         $array = $data;
         $itemsCount = 0;
         $exporter = self::default();
-        $context ??= new Context();
+        $context ??= new Context;
 
         $context->add($data);
 
@@ -63,6 +63,8 @@ final class Exporter
 
                 continue;
             }
+
+            assert(is_array($data));
 
             $result[] = $context->contains($data[$key]) !== false
                 ? '*RECURSION*'

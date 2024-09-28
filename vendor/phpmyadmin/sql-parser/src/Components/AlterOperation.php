@@ -249,6 +249,27 @@ class AlterOperation extends Component
     ];
 
     /**
+     * All routine (procedure or function) options.
+     *
+     * @var array<string, int|array<int, int|string>>
+     * @psalm-var array<string, (positive-int|array{positive-int, ('var'|'var='|'expr'|'expr=')})>
+     */
+    public static $ROUTINE_OPTIONS = [
+        'COMMENT' => [
+            1,
+            'var',
+        ],
+        'LANGUAGE SQL' => 2,
+        'CONTAINS SQL' => 3,
+        'NO SQL' => 3,
+        'READS SQL DATA' => 3,
+        'MODIFIES SQL DATA' => 3,
+        'SQL SECURITY' => 4,
+        'DEFINER' => 5,
+        'INVOKER' => 5,
+    ];
+
+    /**
      * Options of this operation.
      *
      * @var OptionsArray
@@ -422,7 +443,11 @@ class AlterOperation extends Component
                     } elseif (($token->value === ',') && ($brackets === 0)) {
                         break;
                     }
-                } elseif (! self::checkIfTokenQuotedSymbol($token) && $token->type !== Token::TYPE_STRING) {
+                } elseif (
+                    ! self::checkIfTokenQuotedSymbol($token) &&
+                    $token->type !== Token::TYPE_STRING &&
+                    $token->value !== 'CHECK'
+                ) {
                     if (isset(Parser::$STATEMENT_PARSERS[$arrayKey]) && Parser::$STATEMENT_PARSERS[$arrayKey] !== '') {
                         $list->idx++; // Ignore the current token
                         $nextToken = $list->getNext();

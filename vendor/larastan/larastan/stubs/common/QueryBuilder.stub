@@ -46,7 +46,7 @@ class Builder
     /**
      * Add an "or where" clause to the query.
      *
-     * @param  \Closure|model-property|array<model-property|int, mixed>  $column
+     * @param  \Closure|string|array<string|int, mixed>  $column
      * @param  mixed  $operator
      * @param  mixed  $value
      * @return $this
@@ -56,7 +56,7 @@ class Builder
     /**
      * Add a "where" clause comparing two columns to the query.
      *
-     * @param  model-property|array<model-property|int, mixed>  $first
+     * @param  string|array<string|int, mixed>  $first
      * @param  string|null  $operator
      * @param  string|null  $second
      * @param  string|null  $boolean
@@ -155,27 +155,6 @@ class Builder
      * @return $this
      */
     public function havingBetween($column, array $values, $boolean = 'and', $not = false);
-
-    /**
-     * Add an "order by" clause to the query.
-     *
-     * @template TModelClass of \Illuminate\Database\Eloquent\Model
-     * @param  \Closure|\Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder<TModelClass>|\Illuminate\Database\Query\Expression|string  $column
-     * @param  string  $direction
-     * @return $this
-     *
-     * @throws \InvalidArgumentException
-     */
-    public function orderBy($column, $direction = 'asc');
-
-    /**
-     * Add a descending "order by" clause to the query.
-     *
-     * @template TModelClass of \Illuminate\Database\Eloquent\Model
-     * @param  \Closure|\Illuminate\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder<TModelClass>|\Illuminate\Database\Query\Expression|string  $column
-     * @return $this
-     */
-    public function orderByDesc($column);
 
     /**
      * Add a union statement to the query.
